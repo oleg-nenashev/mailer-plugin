@@ -1,6 +1,4 @@
 mailer-plugin
 =============
 
-Breakout of the default Mailer from the Jenkins core.
-
-[Wiki](https://wiki.jenkins-ci.org/display/JENKINS/Mailer)
+This branch demonstrates a non-production plugin build on CodeShip.
