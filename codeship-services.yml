@@ -1,0 +1,4 @@
+ci.jenkins.io-runner:
+  image: onenashev/ci.jenkins.io-runner:latest
+  volumes: 
+    - .:/workspace
