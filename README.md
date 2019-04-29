@@ -5,3 +5,4 @@ mailer-plugin
 
 This branch demonstrates a non-production plugin build on CodeShip, powered by Jenkinsfile Runner.
 The demo uses a prepackaged [ci.jenkins.io-runner](https://github.com/jenkinsci/ci.jenkins.io-runner) image produced by Custom WAR Packager.
+
