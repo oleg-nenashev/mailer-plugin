@@ -1,4 +1,4 @@
-Jenkinsfile Runner Demo for CodeShip
+Jenkinsfile Runner Demo for CloudBees CodeShip
 =============
 
 [![Codeship Status for oleg-nenashev/mailer-plugin](https://app.codeship.com/projects/080f8860-4376-0137-df43-3657630956e0/status?branch=codeship-demo)](https://app.codeship.com/projects/336623) 
