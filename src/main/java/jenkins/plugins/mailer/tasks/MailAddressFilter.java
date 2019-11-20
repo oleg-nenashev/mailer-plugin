@@ -34,6 +34,7 @@ import hudson.model.AbstractBuild;
 import hudson.model.Hudson;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import jenkins.model.Jenkins;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -72,10 +73,11 @@ public abstract class MailAddressFilter implements Describable<MailAddressFilter
     /**
      * Checks if a given email should be excluded from the recipients of an
      * email.
-     * 
-     * @param build
-     * 
-     * @return true if given InternetAddress is to be excluded from the
+     *
+     * @param build the current build.
+     * @param listener the task listener
+     * @param address email address
+     * @return {@code true} if given InternetAddress is to be excluded from the
      *         recipients
      */
     public boolean shouldFilter(Run<?,?> build, TaskListener listener, InternetAddress address) {
@@ -96,11 +98,11 @@ public abstract class MailAddressFilter implements Describable<MailAddressFilter
     }
 
     /**
-     * Returns a copy of the given set of recipients excluding addresses that our filtered out.
-     * @param build
-     * @param listener
-     * @param recipients
-     * @return
+     * Returns a copy of the given set of recipients excluding addresses that are filtered out.
+     * @param build the current build.
+     * @param listener the task listener
+     * @param recipients set of recipients
+     * @return filtered list of recipients
      */
     public static Set<InternetAddress> filterRecipients(Run<?,?> build, TaskListener listener, Set<InternetAddress> recipients) {
 
@@ -148,18 +150,36 @@ public abstract class MailAddressFilter implements Describable<MailAddressFilter
 
     @Override
     public MailAddressFilterDescriptor getDescriptor() {
-        return (MailAddressFilterDescriptor)Hudson.getInstance().getDescriptor(getClass());
+        // TODO 1.590+ Jenkins.getActiveInstance
+        Jenkins jenkins = Jenkins.getInstance();
+        if (jenkins != null) {
+            return (MailAddressFilterDescriptor)jenkins.getDescriptor(getClass());
+        } else {
+            throw new IllegalStateException("Jenkins is not active.");
+        }
     }
     
     /**
-     * Returns all the registered {@link MailAddressFilter} descriptors
+     * @return all of the registered {@link MailAddressFilter} descriptors
      */
     public static DescriptorExtensionList<MailAddressFilter,MailAddressFilterDescriptor> all() {
-        return Hudson.getInstance().<MailAddressFilter,MailAddressFilterDescriptor>getDescriptorList(MailAddressFilter.class);
+        // TODO 1.590+ Jenkins.getActiveInstance
+        Jenkins jenkins = Jenkins.getInstance();
+        if (jenkins != null) {
+            return jenkins.<MailAddressFilter, MailAddressFilterDescriptor>getDescriptorList(MailAddressFilter.class);
+        } else {
+            throw new IllegalStateException("Jenkins is not active.");
+        }
     }
     
     public static ExtensionList<MailAddressFilter> allExtensions() {
-        return Hudson.getInstance().getExtensionList(MailAddressFilter.class);
+        // TODO 1.590+ Jenkins.getActiveInstance
+        Jenkins jenkins = Jenkins.getInstance();
+        if (jenkins != null) {
+            return jenkins.getExtensionList(MailAddressFilter.class);
+        } else {
+            throw new IllegalStateException("Jenkins is not active.");
+        }
     }
 
     private static final Logger LOGGER = Logger.getLogger(MailAddressFilter.class.getName());

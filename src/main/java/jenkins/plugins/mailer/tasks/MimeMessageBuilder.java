@@ -24,6 +24,7 @@
  */
 package jenkins.plugins.mailer.tasks;
 
+import com.google.common.collect.Lists;
 import hudson.model.TaskListener;
 import hudson.remoting.Base64;
 import hudson.tasks.Mailer;
@@ -49,14 +50,17 @@ import javax.mail.internet.MimeUtility;
 
 import java.io.UnsupportedEncodingException;
 import java.security.interfaces.RSAPublicKey;
+import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
+ * Builder for {@link MimeMessage}. This class is NOT thread-safe.
  * @author <a href="mailto:tom.fennelly@gmail.com">tom.fennelly@gmail.com</a>
  */
 public class MimeMessageBuilder {
@@ -68,7 +72,7 @@ public class MimeMessageBuilder {
     private TaskListener listener;
     private String defaultSuffix;
     private String from;
-    private String replyTo;
+    private Set<InternetAddress> replyTo = new LinkedHashSet<InternetAddress>();
     private String subject;
     private String body;
     private AddressFilter recipientFilter;
@@ -77,10 +81,16 @@ public class MimeMessageBuilder {
     private Set<InternetAddress> bcc = new LinkedHashSet<InternetAddress>();
 
     public MimeMessageBuilder() {
-        if (Jenkins.getInstance() != null) {
+        JenkinsLocationConfiguration jlc = JenkinsLocationConfiguration.get();
+        if (jlc != null) {
             defaultSuffix = Mailer.descriptor().getDefaultSuffix();
-            from = JenkinsLocationConfiguration.get().getAdminAddress();
-            replyTo = Mailer.descriptor().getReplyToAddress();
+            from = jlc.getAdminAddress();
+            final String rto = Mailer.descriptor().getReplyToAddress();
+            try {
+                replyTo.addAll(toNormalizedAddresses(rto));
+            } catch(UnsupportedEncodingException e) {
+                logError("Unable to parse Reply-To Addresses " + rto, e);
+            }
         }
     }
 
@@ -110,9 +120,26 @@ public class MimeMessageBuilder {
     }
 
     public MimeMessageBuilder setReplyTo(@Nonnull String replyTo) {
-        this.replyTo = replyTo;
+        try {
+            final List<InternetAddress> addresses = toNormalizedAddresses(replyTo);
+            // Done after to leave the current value untouched if there is a parsing error.
+            this.replyTo.clear();
+            this.replyTo.addAll(addresses);
+        } catch(UnsupportedEncodingException e) {
+            logError("Unable to parse Reply-To Addresses " + replyTo, e);
+        }
         return this;
     }
+
+    public MimeMessageBuilder addReplyTo(@Nonnull String replyTo) {
+        try {
+            this.replyTo.addAll(toNormalizedAddresses(replyTo));
+        } catch(UnsupportedEncodingException e) {
+            logError("Unable to parse Reply-To Addresses " + replyTo, e);
+        }
+        return this;
+    }
+
 
     public MimeMessageBuilder setSubject(@Nonnull String subject) {
         this.subject = subject;
@@ -134,6 +161,13 @@ public class MimeMessageBuilder {
         return this;
     }
 
+    /**
+     * Adds the given recipients to the current MIME message.
+     * @param recipients one or more recipients
+     * @param recipientType recipient type
+     * @return the constructed message with the given recipients
+     * @throws UnsupportedEncodingException in case of encoding problems
+     */
     public MimeMessageBuilder addRecipients(@Nonnull String recipients, @Nonnull Message.RecipientType recipientType) throws UnsupportedEncodingException {
         StringTokenizer tokens = new StringTokenizer(recipients, " \t\n\r\f,");
         while (tokens.hasMoreTokens()) {
@@ -157,8 +191,8 @@ public class MimeMessageBuilder {
     /**
      * Build a {@link MimeMessage} instance from the set of supplied parameters.
      * @return The {@link MimeMessage} instance;
-     * @throws MessagingException
-     * @throws UnsupportedEncodingException
+     * @throws MessagingException in case the mail cannot be created
+     * @throws UnsupportedEncodingException in case of encoding problems
      */
     public MimeMessage buildMimeMessage() throws MessagingException, UnsupportedEncodingException {
         MimeMessage msg = new MimeMessage(Mailer.descriptor().createSession());
@@ -175,8 +209,8 @@ public class MimeMessageBuilder {
         addBody(msg);
         addRecipients(msg);
 
-        if (StringUtils.isNotBlank(replyTo)) {
-            msg.setReplyTo(new Address[]{toNormalizedAddress(replyTo)});
+        if (!replyTo.isEmpty()) {
+            msg.setReplyTo(toAddressArray(replyTo));
         }
         return msg;
     }
@@ -194,6 +228,15 @@ public class MimeMessageBuilder {
             }
             msg.setHeader("X-Instance-Identity", encodedIdentity);
         }
+    }
+
+    private static Address[] toAddressArray(Collection<InternetAddress> c) {
+        if (c == null || c.isEmpty()) {
+            return new Address[0];
+        }
+        final Address[] addresses = new Address[c.size()];
+        c.toArray(addresses);
+        return addresses;
     }
 
     public static void setInReplyTo(@Nonnull MimeMessage msg, @Nonnull String inReplyTo) throws MessagingException {
@@ -231,17 +274,28 @@ public class MimeMessageBuilder {
         addRecipients(msg, cc, Message.RecipientType.CC);
         addRecipients(msg, bcc, Message.RecipientType.BCC);
     }
+
     private void addRecipients(MimeMessage msg, Set<InternetAddress> recipientList, Message.RecipientType recipientType) throws UnsupportedEncodingException, MessagingException {
         if (recipientList.isEmpty()) {
             return;
         }
+        final Collection<InternetAddress> recipients = recipientFilter != null ? recipientFilter.apply(recipientList) : recipientList;
+        msg.setRecipients(recipientType, toAddressArray(recipients));
+    }
 
-        if (recipientFilter != null) {
-            Set<InternetAddress> filteredList = recipientFilter.apply(recipientList);
-            msg.setRecipients(recipientType, filteredList.toArray(new InternetAddress[filteredList.size()]));
-        } else {
-            msg.setRecipients(recipientType, recipientList.toArray(new InternetAddress[recipientList.size()]));
+    private List<InternetAddress> toNormalizedAddresses(String addresses) throws UnsupportedEncodingException {
+        final List<InternetAddress> list = Lists.newLinkedList();
+        if (StringUtils.isNotBlank(addresses)) {
+            StringTokenizer tokens = new StringTokenizer(addresses, " \t\n\r\f,");
+            while (tokens.hasMoreTokens()) {
+                String addressToken = tokens.nextToken();
+                InternetAddress internetAddress = toNormalizedAddress(addressToken);
+                if (internetAddress != null) {
+                    list.add(internetAddress);
+                }
+            }
         }
+        return list;
     }
 
     private InternetAddress toNormalizedAddress(String address) throws UnsupportedEncodingException {
@@ -259,7 +313,7 @@ public class MimeMessageBuilder {
         }
 
         try {
-            return Mailer.StringToAddress(address, charset);
+            return Mailer.stringToAddress(address, charset);
         } catch (AddressException e) {
             // report bad address, but try to send to other addresses
             logError("Unable to send to address: " + address, e);
