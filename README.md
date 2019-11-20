@@ -1,4 +1,4 @@
-GitHub Actions demo for the Mailer plugin
+GitHub Actions demo for the Mailer plugin and ci.jenkins.io-runner
 =========================================
 
-Just a work-in-progress set of demos for GitHub actions.
+This branch demonstrates some GitHub actions for building Jenkins plugins with [Jenkinsfile Runner](https://github.com/jenkinsci/jenkinsfile-runner) o GitHub actions.
