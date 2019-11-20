@@ -1,0 +1,16 @@
+name: ci.jenkins.io-runner
+
+on:
+  push:
+    # branches to consider in the event; optional, defaults to all
+    branches:
+      - master
+
+jobs:
+  update_draft_release:
+    runs-on: ubuntu-latest
+    steps:
+      # Docker image is not optimized for GitHub actions, so it looks pretty bad
+      - name: Run ci.jenkins.io-runner
+        uses: jenkinsci/ci.jenkins.io-runner
+          
