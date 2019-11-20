@@ -10,7 +10,6 @@ jobs:
   update_draft_release:
     runs-on: ubuntu-latest
     steps:
-      # Docker image is not optimized for GitHub actions, so it looks pretty bad
       - name: Run ci.jenkins.io-runner
         uses: oleg-nenashev/ci.jenkins.io-runner-action@master
           
