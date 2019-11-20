@@ -7,9 +7,10 @@ on:
       - github-actions-demo
 
 jobs:
-  update_draft_release:
+  ci.jenkins.io-runner:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v1
       - name: Run ci.jenkins.io-runner
         uses: oleg-nenashev/ci.jenkins.io-runner-action@master
           
