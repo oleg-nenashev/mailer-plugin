@@ -7,3 +7,4 @@ This branch demonstrates a non-production plugin build on CodeShip, powered by J
 The demo uses a prepackaged [ci.jenkins.io-runner](https://github.com/jenkinsci/ci.jenkins.io-runner) image produced by Custom WAR/Docker Packager.
 
 The demo is powered by [Jenkinsfile Runner](https://github.com/jenkinsci/jenkinsfile-runner).
+
